@@ -876,6 +876,51 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
   #favBtn .cnt{display:none}
   .tgrid{grid-template-columns:1fr}
 }
+
+/* 내 기준: 메모·태그·예산·목표가 */
+#favBanner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 16px;background:#fff7ed;color:#9a3412;border-bottom:1px solid #fed7aa;font-size:13px}
+#favBanner[hidden]{display:none}
+#favBanner span{flex:1 1 auto}
+#favBanner button{font:inherit;font-size:12.5px;color:#9a3412;background:#fff;border:1px solid #fdba74;border-radius:999px;padding:2px 12px;cursor:pointer}
+#favBanner button:hover{background:#ffedd5}
+@media (prefers-color-scheme:dark){#favBanner{background:#2b2416;color:#f0b35a;border-color:#4a3a1e}#favBanner button{background:transparent;color:#f0b35a;border-color:#6b5426}}
+.anactl2{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:2px 0 6px;font-size:13px;color:var(--muted)}
+.anactl2[hidden]{display:none}
+.anactl2 label{display:flex;gap:6px;align-items:center}
+.anactl2 select,.anactl2 input,.trow select,.trow input[type=number],.trow input[type=text],.tcard textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 7px;min-width:0}
+.anactl2 input{width:76px}
+.anactl2 .bud{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.anactl2 .bud b{color:var(--text)}
+.rate{display:inline-flex;margin-left:6px;vertical-align:1px}
+.rt{font-size:12px;line-height:1;background:none;border:0;padding:0 1px;color:var(--line);cursor:pointer}
+.rt.on{color:#2563eb}
+.rt:hover{color:#2563eb}
+.tgs{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.tg{display:inline-flex;align-items:center;gap:2px;font:inherit;font-size:11.5px;line-height:1.6;padding:0 8px;border-radius:999px;border:1px solid var(--line);background:var(--chip);color:var(--text)}
+.tg.on{background:var(--accentbg);border-color:var(--accentline);color:var(--accent)}
+.tg.on button{font:inherit;background:none;border:0;color:inherit;cursor:pointer;padding:0 0 0 2px}
+.tg.add{cursor:pointer;color:var(--muted);border-style:dashed}
+.tg.add:hover{border-color:var(--accent);color:var(--accent)}
+td small.memo{font-style:italic;margin-top:2px}
+.ok{color:#16a34a;font-weight:600}
+.over{color:#e11d48;font-weight:600}
+.hit{color:#b45309;font-weight:700}
+.trow{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:6px 0;font-size:12.5px;color:var(--muted)}
+.trow label{display:flex;gap:6px;align-items:center}
+.trow select{max-width:100%}
+.trow input[type=number]{width:70px}
+.trow .tg input,.tagrow input[type=text]{width:96px;font-size:12px;padding:1px 8px;border-radius:999px}
+.rl{display:inline-flex;align-items:center}
+.tcard textarea{width:100%;margin-top:4px;resize:vertical;font-size:12.5px}
+@media (max-width:760px){.anactl2 .bud{width:100%}.anactl2 input{width:70px}}
+
+/* 분석기 표 가독성 */
+.anap{width:min(1360px,100%)}
+table.at th{white-space:nowrap}
+table.at td{min-width:86px}
+table.at td.an{min-width:240px}
+table.at td small{white-space:nowrap}
+table.at td small.memo{white-space:normal}
 </style>
 </head>
 <body>
@@ -892,6 +937,7 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
   <button id="tgMap" type="button" aria-expanded="true"><span class="lbl">지도</span><span class="car">▾</span></button>
   <span id="asofM"></span>
 </div>
+<div id="favBanner" hidden></div>
 <section class="filters">
   <select id="fSido" aria-label="시·도"></select>
   <select id="fRegion" aria-label="시·군·구"></select>
@@ -927,6 +973,16 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
       <h2>⭐ 내 즐겨찾기 분석 <small id="anaWho"></small></h2>
       <label class="anactl">비교 평형 <select id="aBand"></select></label>
       <button id="anaClose" class="back" type="button" aria-label="닫기">✕</button>
+    </div>
+    <div id="anaCtl2" class="anactl2" hidden>
+      <label>정렬 <select id="aSort">
+        <option value="added">담은 순</option><option value="rate">우선순위 높은 순</option><option value="pp">평당가 높은 순</option>
+        <option value="chg">담은 후 상승 큰 순</option><option value="news">새 거래 많은 순</option></select></label>
+      <label>태그 <select id="aTag"></select></label>
+      <span class="bud">내 예산
+        <label>자기자본 <input id="bOwn" type="number" step="0.1" min="0" inputmode="decimal" placeholder="0"> 억</label>
+        <label>+ 대출 <input id="bLoan" type="number" step="0.1" min="0" inputmode="decimal" placeholder="0"> 억</label>
+        <b id="bTot">합계 -</b></span>
     </div>
     <div id="anaBody"></div>
   </div>
@@ -1508,7 +1564,7 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
   function setSync(t) { var el = $('pSync'); if (el) el.textContent = t; $('userBtn').title = t; }
   function normUser(u, upd) {
     u = u || {};
-    return { regions: Array.isArray(u.regions) ? u.regions : [], favs: u.favs && typeof u.favs === 'object' ? u.favs : {}, upd: upd || u.upd || 0 };
+    return { regions: Array.isArray(u.regions) ? u.regions : [], favs: u.favs && typeof u.favs === 'object' ? u.favs : {}, bud: { own: +(u.bud && u.bud.own) || 0, loan: +(u.bud && u.bud.loan) || 0 }, upd: upd || u.upd || 0 };
   }
   Object.keys(store.users).forEach(function (n) { store.users[n] = normUser(store.users[n]); });
   function cloudId(name) {  // 이름 -> 문서 ID (정규화 후 16진수라 한글도 안전)
@@ -1589,6 +1645,7 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
     var u = curUser();
     if (!u) { openProfile('즐겨찾기를 쓰려면 먼저 이름을 정해 주세요.'); return; }
     var k = keyOf(D.complexes[i]);
+    if (!u.favs[k] && Object.keys(u.favs).length >= 80) { window.alert('즐겨찾기는 최대 80개까지 담을 수 있습니다.'); return; }
     if (u.favs[k]) delete u.favs[k];
     else { var t = repTrade(i); u.favs[k] = { t: D.generated, b: t ? { y: t.ymd, p: t.price, a: t.area } : null, s: byC[i].length ? byC[i][0].ymd : 0 }; }
     touchUser(); updateFavUi();
@@ -1600,93 +1657,178 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
       var on = isFav(+b.dataset.f);
       b.classList.toggle('on', on); b.textContent = on ? '★' : '☆'; b.setAttribute('aria-pressed', on); b.title = on ? '즐겨찾기 해제' : '즐겨찾기에 담기';
     });
+    updateBanner();
     if (!$('ana').hidden) drawAna();
   }
 
-  // ───────── 개인별 분석기: 비교 · 추이 · 트래킹 ─────────
+  // ───────── 개인별 분석기: 비교 · 추이 · 트래킹 · 내 기준(메모·예산·목표가) ─────────
   var ANA_COLORS = ['#2563eb', '#e11d48', '#16a34a', '#f59e0b', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#475569'];
-  var anaHidden = {};
+  var PRESET_TAGS = ['학군', '역세권', '신축', '재건축', '조용함', '상권', '주차', '공원'];
+  var anaHidden = {}, anaSort = 'added', anaTag = '', peerCache = {}, memoTimer = null;
   $('aBand').innerHTML = $('fArea').innerHTML;
 
+  function bandOfPy(p) { return p <= 20 ? [0, 20] : p <= 30 ? [20, 30] : p <= 40 ? [30, 40] : p <= 50 ? [40, 50] : [50, 999]; }
+  function eok(v) { return v ? Math.round(v / 100) / 100 : ''; }                 // 만원 -> 억 (표시용 숫자)
+  function toMan(s) { var v = parseFloat(String(s).replace(/,/g, '')); return isFinite(v) && v > 0 ? Math.round(v * 10000) : 0; }  // 억 -> 만원
+  function tMatch(f, c, band) { return f.pa ? function (t) { return Math.abs(t.area - f.pa) <= 1; } : function (t) { return inBand(c, t.area, band); }; }
+
+  // 같은 시군구/동 단지들의 최근 12개월 평당가 분포 (같은 평형대) — "내 단지의 위치" 계산용
+  function peerPps(scopeKey, scopeFn, band) {
+    var ck = scopeKey + '|' + band.join('-');
+    if (peerCache[ck]) return peerCache[ck];
+    var cut = cutoff(12), out = [];
+    D.complexes.forEach(function (c, i) {
+      if (!scopeFn(c)) return;
+      var v = [];
+      byC[i].forEach(function (t) { if (t.ymd >= cut && inBand(c, t.area, band)) v.push(t.price / (t.area / PY)); });
+      if (v.length) out.push(avg(v));
+    });
+    return (peerCache[ck] = out.sort(function (a, b) { return a - b; }));
+  }
+  function rankInfo(sorted, v) {   // 상위 몇 %인지, 중앙값 대비 몇 % 높은지
+    var n = sorted.length, higher = sorted.filter(function (x) { return x > v; }).length, med = sorted[Math.floor(n / 2)];
+    return { top: Math.max(1, Math.round((higher + 1) / n * 100)), vs: (v / med - 1) * 100, n: n };
+  }
+
+  function rebase(i, f, pa) {   // 관심 평형을 바꾸면 "담은 날 기준 가격"도 그 평형의 담은 날 즈음 거래로 다시 잡는다
+    var same = byC[i].filter(function (t) { return Math.abs(t.area - pa) <= 1; });
+    if (!same.length) return;
+    var added = +String(f.t || '').replace(/-/g, '') || 0;
+    var at = same.filter(function (t) { return t.ymd <= added; })[0] || same[same.length - 1];
+    f.b = { y: at.ymd, p: at.price, a: at.area };
+  }
+
   function calcFav(x, band) {
-    var i = x.i, c = D.complexes[i], all = byC[i], cut12 = cutoff(12), cut3 = cutoff(3);
-    var kf = areaKeyFn(all.concat(rentC[i]));
-    var ts = all.filter(function (t) { return t.ymd >= cut12 && inBand(c, t.area, band); });
+    var f = x.f, i = x.i, c = D.complexes[i], all = byC[i], cut12 = cutoff(12), cut3 = cutoff(3);
+    var kf = areaKeyFn(all.concat(rentC[i])), match = tMatch(f, c, band);
+    var ts = all.filter(function (t) { return t.ymd >= cut12 && match(t); });
     var t3 = ts.filter(function (t) { return t.ymd >= cut3; });
-    var rents = rentC[i].filter(function (t) { return t.ymd >= cut12 && inBand(c, t.area, band); });
-    var sg = {}, rg = {}, wS = 0, wJ = 0;
+    var rents = rentC[i].filter(function (t) { return t.ymd >= cut12 && match(t); });
+    var sg = {}, rg = {}, wS = 0, wJ = 0, wN = 0;
     ts.forEach(function (t) { var k = kf(t.area); (sg[k] = sg[k] || []).push(t.price); });
     rents.forEach(function (t) { var k = kf(t.area); (rg[k] = rg[k] || []).push(t.price); });
-    Object.keys(rg).forEach(function (k) { if (sg[k]) { var w = rg[k].length; wS += avg(sg[k]) * w; wJ += avg(rg[k]) * w; } });
+    Object.keys(rg).forEach(function (k) { if (sg[k]) { var w = rg[k].length; wS += avg(sg[k]) * w; wJ += avg(rg[k]) * w; wN += w; } });
     x.ts = ts; x.last = ts[0] || null; x.n12 = ts.length; x.n3 = t3.length;
     x.pp = ts.length ? avg(ts.map(function (t) { return t.price / (t.area / PY); })) : null;
     x.avg3 = t3.length ? avg(t3.map(function (t) { return t.price; })) : null;
     x.ratio = wS ? wJ / wS * 100 : null;
-    x.base = x.f.b; x.cur = null; x.chg = null;
-    if (x.base) {  // 담을 때와 같은 평형(전용 ±1㎡)의 최신 거래와 비교
+    x.gap = wN ? (wS - wJ) / wN : null;                                          // 매매 − 전세 (전세 건수 가중평균)
+    x.min3 = t3.length ? Math.min.apply(null, t3.map(function (t) { return t.price; })) : null;
+    x.hit = !!(f.tp && x.min3 !== null && x.min3 <= f.tp);                       // 최근 3개월에 목표가 이하 거래가 있었는가
+    x.base = f.b; x.cur = null; x.chg = null;
+    if (x.base) {
       x.cur = all.filter(function (t) { return Math.abs(t.area - x.base.a) <= 1; })[0] || null;
       if (x.cur) x.chg = (x.cur.price - x.base.p) / x.base.p * 100;
     }
-    x.news = all.filter(function (t) { return t.ymd > (x.f.s || 0); });
+    x.news = all.filter(function (t) { return t.ymd > (f.s || 0); });
+    // 구·동 안에서의 위치 (같은 평형대 단지끼리)
+    var pb = f.pa ? bandOfPy(Math.floor(supArea(c, f.pa) / PY)) : band;
+    x.pos = x.posD = null;
+    if (x.pp !== null) {
+      var rg2 = peerPps('r' + c.r, function (cc) { return cc.r === c.r; }, pb);
+      if (rg2.length >= 3) x.pos = rankInfo(rg2, x.pp);
+      var dg = peerPps('d' + c.r + c.d, function (cc) { return cc.r === c.r && cc.d === c.d; }, pb);
+      if (dg.length >= 5) x.posD = rankInfo(dg, x.pp);
+    }
     return x;
   }
+
   function chgHtml(x) {
     if (x.chg === null) return '<span class="na">-</span>';
     var d = x.cur.price - x.base.p, cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
     return '<span class="' + cls + '">' + (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '') + (d === 0 ? '변동 없음' : Math.abs(x.chg).toFixed(1) + '%') + '</span><small>' + won(x.base.p) + ' → ' + won(x.cur.price) + '</small>';
   }
+  function posHtml(x) {
+    if (!x.pos) return '<span class="na">-</span>';
+    var s = function (p, label) { return label + ' 상위 <b>' + p.top + '%</b> <small title="같은 ' + (label === '구' ? '시군구' : '동') + ' 단지 중앙값 대비 (같은 평형대, ' + p.n + '개 단지)">(' + (p.vs >= 0 ? '+' : '') + p.vs.toFixed(0) + '%)</small>'; };
+    return '<div>' + s(x.pos, '구') + '</div>' + (x.posD ? '<div>' + s(x.posD, '동') + '</div>' : '');
+  }
+  function budgetHtml(x, bud) {
+    var tot = (bud.own || 0) + (bud.loan || 0), out = [], ref = x.last ? x.last.price : null;
+    if (tot > 0 && ref !== null) out.push(tot >= ref ? '<span class="ok">예산 안 · 여유 ' + won(tot - ref) + '</span>' : '<span class="over">예산 초과 · ' + won(ref - tot) + ' 부족</span>');
+    if (x.f.tp) out.push(x.hit ? '<span class="hit">🎯 목표가(' + won(x.f.tp) + ') 이하 거래 있음 · 최저 ' + won(x.min3) + '</span>' : '<small>목표 ' + won(x.f.tp) + (ref !== null ? ' (최근가보다 ' + (ref > x.f.tp ? won(ref - x.f.tp) + ' 높음' : '이하') + ')' : '') + '</small>');
+    return out.length ? out.join('<br>') : '<span class="na">' + (tot > 0 || x.f.tp ? '-' : '예산·목표가를 입력하세요') + '</span>';
+  }
+  function ratingHtml(k, r) {
+    return '<span class="rate">' + [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" class="rt' + (n <= r ? ' on' : '') + '" data-rate="' + n + '" data-rk="' + esc(k) + '" title="우선순위 ' + n + '">★</button>'; }).join('') + '</span>';
+  }
+
   function openAna() {
-    $('aBand').value = $('fArea').value; $('ana').hidden = false; drawAna();
-    $('ana').querySelector('.anap').scrollTop = 0;
+    var u = curUser();
+    $('aBand').value = $('fArea').value; $('ana').hidden = false;
+    $('bOwn').value = u ? eok(u.bud.own) : ''; $('bLoan').value = u ? eok(u.bud.loan) : '';
+    drawAna(); $('ana').querySelector('.anap').scrollTop = 0;
+    dismissBanner();
   }
   function closeAna() { $('ana').hidden = true; }
 
   function drawAna() {
-    var u = curUser(), body = $('anaBody');
+    var u = curUser(), body = $('anaBody'), panel = $('ana').querySelector('.anap'), keep = panel.scrollTop;
     $('anaWho').textContent = u ? '· ' + store.last : '';
+    $('anaCtl2').hidden = !u;
     if (!u) { body.innerHTML = '<div class="empty">이름을 정하면 즐겨찾기를 쓸 수 있습니다. 위쪽 <b>👤</b> 버튼에서 이름을 입력해 주세요.</div>'; return; }
+    var tot = (u.bud.own || 0) + (u.bud.loan || 0);
+    $('bTot').textContent = tot ? '합계 ' + won(tot) : '합계 -';
     var keys = Object.keys(u.favs);
+    // 태그 선택 목록 갱신
+    var tagSet = {}; keys.forEach(function (k) { (u.favs[k].g || []).forEach(function (g) { tagSet[g] = 1; }); });
+    var tagNames = Object.keys(tagSet).sort();
+    if (anaTag && !tagSet[anaTag]) anaTag = '';
+    $('aTag').innerHTML = '<option value="">태그 전체</option>' + tagNames.map(function (g) { return '<option' + (g === anaTag ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('');
     if (!keys.length) { body.innerHTML = '<div class="empty">아직 담은 단지가 없습니다. 목록이나 상세 화면의 <b>☆</b>를 눌러 단지를 담아 보세요.</div>'; return; }
+
     var band = $('aBand').value.split('-').map(Number);
     var items = keys.map(function (k, n) { return { k: k, i: idxByKey[k], f: u.favs[k], color: ANA_COLORS[n % ANA_COLORS.length] }; });
-    var live = items.filter(function (x) { return x.i !== undefined; }).map(function (x) { return calcFav(x, band); });
     var gone = items.filter(function (x) { return x.i === undefined; });
+    var live = items.filter(function (x) { return x.i !== undefined && (!anaTag || (x.f.g || []).indexOf(anaTag) >= 0); }).map(function (x) { return calcFav(x, band); });
+    var SORT = {
+      rate: function (a, b) { return (b.f.r || 0) - (a.f.r || 0); },
+      pp: function (a, b) { return (b.pp || 0) - (a.pp || 0); },
+      chg: function (a, b) { return (b.chg === null ? -1e9 : b.chg) - (a.chg === null ? -1e9 : a.chg); },
+      news: function (a, b) { return b.news.length - a.news.length; }
+    };
+    if (SORT[anaSort]) live.sort(SORT[anaSort]);
 
     // ① 비교 표
     var trs = live.map(function (x) {
-      var c = D.complexes[x.i], l = x.last;
-      return '<tr><td class="an"><i class="dot" style="background:' + x.color + '"></i><a href="#" data-open="' + x.i + '">' + esc(c.n) + '</a><small>' + esc(regById[c.r].name + ' ' + c.d) + (c.b ? ' · ' + c.b + '년(' + age(c.b) + '년차)' : '') + (c.h ? ' · ' + c.h.toLocaleString() + '세대' : '') + '</small></td>' +
+      var c = D.complexes[x.i], l = x.last, f = x.f;
+      var meta = esc(regById[c.r].name + ' ' + c.d) + (c.b ? ' · ' + c.b + '년(' + age(c.b) + '년차)' : '') + (c.h ? ' · ' + c.h.toLocaleString() + '세대' : '') + (f.pa ? ' · <b>관심 ' + pyeong(f.pa) + '평</b>' : '');
+      return '<tr><td class="an"><i class="dot" style="background:' + x.color + '"></i><a href="#" data-open="' + x.i + '">' + esc(c.n) + '</a>' + ratingHtml(x.k, f.r || 0) +
+        '<small>' + meta + '</small>' + ((f.g && f.g.length) ? '<div class="tgs">' + f.g.map(function (g) { return '<span class="tg">' + esc(g) + '</span>'; }).join('') + '</div>' : '') + (f.m ? '<small class="memo">“' + esc(f.m.length > 40 ? f.m.slice(0, 40) + '…' : f.m) + '”</small>' : '') + '</td>' +
         '<td>' + (l ? '<b>' + won(l.price) + '</b><small>' + ymdStr(l.ymd) + ' · ' + pyeong(l.area) + '평 · ' + l.floor + '층</small>' : '<span class="na">-</span>') + '</td>' +
         '<td>' + (x.avg3 !== null ? '<b>' + won(x.avg3) + '</b><small>' + x.n3 + '건</small>' : '<span class="na">-</span>') + '</td>' +
         '<td>' + (x.pp !== null ? '<b>' + won(x.pp) + '</b><small>' + x.n12 + '건/12개월</small>' : '<span class="na">-</span>') + '</td>' +
+        '<td>' + posHtml(x) + '</td>' +
         '<td>' + (x.ratio !== null ? '<b>' + x.ratio.toFixed(1) + '%</b>' : '<span class="na">-</span>') + '</td>' +
+        '<td>' + (x.gap !== null ? '<b>' + won(x.gap) + '</b><small>매매−전세</small>' : '<span class="na">-</span>') + '</td>' +
         '<td>' + chgHtml(x) + '</td>' +
+        '<td>' + budgetHtml(x, u.bud) + '</td>' +
         '<td>' + (x.news.length ? '<b class="newb">' + x.news.length + '건</b>' : '<span class="na">없음</span>') + '</td>' +
         '<td>' + starHtml(x.i, 'star') + '</td></tr>';
     }).join('');
-    var table = '<div class="scrollx"><table class="t at"><thead><tr><th>단지</th><th>최근 실거래</th><th>3개월 평균</th><th>평당가(12개월)</th><th>전세가율</th><th>담은 후</th><th>새 거래</th><th></th></tr></thead><tbody>' + trs + '</tbody></table></div>';
+    var table = live.length ? '<div class="scrollx"><table class="t at"><thead><tr><th>단지</th><th>최근 실거래</th><th>3개월 평균</th><th>평당가(12개월)</th><th>내 단지의 위치</th><th>전세가율</th><th>갭</th><th>담은 후</th><th>예산·목표가</th><th>새 거래</th><th></th></tr></thead><tbody>' + trs + '</tbody></table></div>' : '<div class="empty">이 태그의 단지가 없습니다.</div>';
 
-    // ② 평당가 추이 (24개월, 평형 필터 적용)
+    // ② 평당가 추이 (24개월)
     var mk = monthKeys(24), series = live.map(function (x) {
-      var c = D.complexes[x.i], by = {};
-      byC[x.i].forEach(function (t) { if (inBand(c, t.area, band)) { var m = Math.floor(t.ymd / 100); (by[m] = by[m] || []).push(t.price / (t.area / PY)); } });
-      return mk.map(function (m) { return by[m] ? avg(by[m]) : null; });
+      var c = D.complexes[x.i], by = {}, m = tMatch(x.f, c, band);
+      byC[x.i].forEach(function (t) { if (m(t)) { var mm = Math.floor(t.ymd / 100); (by[mm] = by[mm] || []).push(t.price / (t.area / PY)); } });
+      return mk.map(function (mm) { return by[mm] ? avg(by[mm]) : null; });
     });
-    var all = [];
-    series.forEach(function (s, n) { if (!anaHidden[live[n].k]) s.forEach(function (v) { if (v !== null) all.push(v); }); });
+    var allv = [];
+    series.forEach(function (s, n) { if (!anaHidden[live[n].k]) s.forEach(function (v) { if (v !== null) allv.push(v); }); });
     var chart;
-    if (!all.length) chart = '<div class="empty">표시할 거래가 없습니다. 평형 선택이나 범례를 바꿔 보세요.</div>';
+    if (!allv.length) chart = '<div class="empty">표시할 거래가 없습니다. 평형 선택이나 범례를 바꿔 보세요.</div>';
     else {
-      var W = 640, H = 240, L = 54, R = 14, T = 14, B = 28, mn = Math.min.apply(null, all), mx = Math.max.apply(null, all), pad = (mx - mn) * 0.08 || mx * 0.05;
+      var W = 640, H = 240, L = 54, R = 14, T = 14, B = 28, mn = Math.min.apply(null, allv), mx = Math.max.apply(null, allv), pad = (mx - mn) * 0.08 || mx * 0.05;
       mn -= pad; mx += pad;
       var xAt = function (j) { return L + (W - L - R) * j / (mk.length - 1); }, yAt = function (v) { return T + (H - T - B) * (1 - (v - mn) / (mx - mn)); };
       var g = '';
       for (var t = 0; t <= 4; t++) { var v = mn + (mx - mn) * t / 4, y = yAt(v); g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" class="gl"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" class="ax" text-anchor="end">' + wonS(v) + '</text>'; }
-      mk.forEach(function (m, j) { if (j % 3 === 0 || j === mk.length - 1) g += '<text x="' + xAt(j) + '" y="' + (H - 8) + '" class="ax" text-anchor="middle">\'' + String(m).slice(2, 4) + '.' + String(m).slice(4) + '</text>'; });
+      mk.forEach(function (mm, j) { if (j % 3 === 0 || j === mk.length - 1) g += '<text x="' + xAt(j) + '" y="' + (H - 8) + '" class="ax" text-anchor="middle">\'' + String(mm).slice(2, 4) + '.' + String(mm).slice(4) + '</text>'; });
       var lines = series.map(function (s, n) {
         if (anaHidden[live[n].k]) return '';
         var d = '', pen = false, dots = '';
-        s.forEach(function (v, j) { if (v === null) { pen = false; return; } d += (pen ? 'L' : 'M') + xAt(j).toFixed(1) + ' ' + yAt(v).toFixed(1); pen = true; dots += '<circle cx="' + xAt(j).toFixed(1) + '" cy="' + yAt(v).toFixed(1) + '" r="2.6" fill="' + live[n].color + '"/>'; });
+        s.forEach(function (val, j) { if (val === null) { pen = false; return; } d += (pen ? 'L' : 'M') + xAt(j).toFixed(1) + ' ' + yAt(val).toFixed(1); pen = true; dots += '<circle cx="' + xAt(j).toFixed(1) + '" cy="' + yAt(val).toFixed(1) + '" r="2.6" fill="' + live[n].color + '"/>'; });
         return '<path d="' + d + '" fill="none" stroke="' + live[n].color + '" stroke-width="2" stroke-linejoin="round"/>' + dots;
       }).join('');
       chart = '<div class="achart" data-n="' + mk.length + '" data-l="' + L + '" data-r="' + R + '" data-w="' + W + '"><div class="atip" hidden></div><svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="월별 평당가 추이">' + g + lines + '<line class="cur" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" hidden/></svg></div>';
@@ -1694,26 +1836,91 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
     var legend = '<div class="lgd">' + live.map(function (x) { return '<button type="button" class="lg' + (anaHidden[x.k] ? ' off' : '') + '" data-lg="' + esc(x.k) + '"><i class="dot" style="background:' + x.color + '"></i>' + esc(D.complexes[x.i].n) + '</button>'; }).join('') + '</div>';
     window.__anaSeries = { mk: mk, live: live, series: series };
 
-    // ③ 트래킹 카드
+    // ③ 내 기준·트래킹 카드
     var cards = live.map(function (x) {
-      var c = D.complexes[x.i], news = x.news.slice(0, 5);
+      var c = D.complexes[x.i], f = x.f, news = x.news.slice(0, 5), all = byC[x.i], kf = areaKeyFn(all), tmap = {};
+      all.forEach(function (t) { var k = kf(t.area); if (!tmap[k]) tmap[k] = { a: t.area, n: 0 }; tmap[k].n++; });
+      var opts = '<option value="">자동 (가장 많이 거래된 평형)</option>' + Object.keys(tmap).map(Number).sort(function (a, b) { return a - b; }).map(function (k) {
+        var o = tmap[k], sel = f.pa && Math.abs(o.a - f.pa) <= 1;
+        return '<option value="' + o.a.toFixed(2) + '"' + (sel ? ' selected' : '') + '>' + pyeong(o.a) + '평 (전용 ' + o.a.toFixed(1) + '㎡) · ' + o.n + '건</option>';
+      }).join('');
+      var tags = (f.g || []).map(function (g) { return '<span class="tg on">' + esc(g) + '<button type="button" data-tagt="' + esc(g) + '" data-rk="' + esc(x.k) + '" title="태그 삭제">×</button></span>'; }).join('');
+      var presets = PRESET_TAGS.filter(function (g) { return (f.g || []).indexOf(g) < 0; }).map(function (g) { return '<button type="button" class="tg add" data-tagt="' + esc(g) + '" data-rk="' + esc(x.k) + '">+ ' + esc(g) + '</button>'; }).join('');
       return '<div class="tcard"><div class="tch"><i class="dot" style="background:' + x.color + '"></i><b>' + esc(c.n) + '</b>' + starHtml(x.i, 'star') + '</div>' +
-        '<div class="tcm">담은 날 ' + esc(x.f.t) + (x.base ? ' · 기준 ' + pyeong(x.base.a) + '평 ' + won(x.base.p) + ' (' + ymdStr(x.base.y) + ')' : '') + '</div>' +
+        '<div class="tcm">담은 날 ' + esc(f.t) + (x.base ? ' · 기준 ' + pyeong(x.base.a) + '평 ' + won(x.base.p) + ' (' + ymdStr(x.base.y) + ')' : '') + '</div>' +
         '<div class="tcm">담은 후 ' + chgHtml(x) + '</div>' +
-        (x.news.length ? '<div class="tnew"><b>새 거래 ' + x.news.length + '건</b> <small>마지막 확인 ' + (x.f.s ? ymdStr(x.f.s) : '-') + ' 이후</small><ul>' + news.map(function (t) { return '<li>' + ymdStr(t.ymd) + ' · ' + pyeong(t.area) + '평 · ' + t.floor + '층 · <b>' + won(t.price) + '</b></li>'; }).join('') + (x.news.length > 5 ? '<li class="na">외 ' + (x.news.length - 5) + '건</li>' : '') + '</ul><button type="button" class="tb" data-seen="' + esc(x.k) + '">확인했어요</button></div>' : '<div class="tcm na">마지막 확인 이후 새 거래가 없습니다.</div>') + '</div>';
+        '<div class="trow"><label>관심 평형<select data-pref="' + esc(x.k) + '">' + opts + '</select></label></div>' +
+        '<div class="trow"><label>목표가 <input type="number" step="0.1" min="0" inputmode="decimal" data-tp="' + esc(x.k) + '" value="' + (f.tp ? eok(f.tp) : '') + '" placeholder="없음"> 억</label><span class="rl">우선순위 ' + ratingHtml(x.k, f.r || 0) + '</span></div>' +
+        '<div class="trow tagrow">' + tags + presets + '<input type="text" maxlength="12" data-tagin="' + esc(x.k) + '" placeholder="+ 직접 입력"></div>' +
+        '<textarea data-memo="' + esc(x.k) + '" maxlength="300" rows="2" placeholder="메모 (예: 학군 좋음, 주차 불편, 임장 때 확인할 것)">' + esc(f.m || '') + '</textarea>' +
+        (x.news.length ? '<div class="tnew"><b>새 거래 ' + x.news.length + '건</b> <small>마지막 확인 ' + (f.s ? ymdStr(f.s) : '-') + ' 이후</small><ul>' + news.map(function (t) { return '<li>' + ymdStr(t.ymd) + ' · ' + pyeong(t.area) + '평 · ' + t.floor + '층 · <b>' + won(t.price) + '</b></li>'; }).join('') + (x.news.length > 5 ? '<li class="na">외 ' + (x.news.length - 5) + '건</li>' : '') + '</ul><button type="button" class="tb" data-seen="' + esc(x.k) + '">확인했어요</button></div>' : '<div class="tcm na">마지막 확인 이후 새 거래가 없습니다.</div>') + '</div>';
     }).join('') + gone.map(function (x) { return '<div class="tcard"><div class="tch"><b>' + esc(x.k.split('|')[3] || x.k) + '</b></div><div class="tcm na">현재 데이터에서 찾을 수 없는 단지입니다.</div><button type="button" class="tb" data-rm="' + esc(x.k) + '">목록에서 삭제</button></div>'; }).join('');
 
-    body.innerHTML = '<h3>비교 <small>최근 12개월 · ' + (band[1] >= 999 && band[0] === 0 ? '모든 평형' : $('aBand').options[$('aBand').selectedIndex].text) + ' · 단지명을 누르면 상세 보기</small></h3>' + table +
+    var bandName = (band[1] >= 999 && band[0] === 0) ? '모든 평형' : $('aBand').options[$('aBand').selectedIndex].text;
+    body.innerHTML = '<h3>비교 <small>최근 12개월 · ' + bandName + ' (관심 평형을 지정한 단지는 그 평형) · 단지명을 누르면 상세 보기</small></h3>' + table +
       '<h3>평당가 추이 <small>월 평균, 최근 24개월 · 범례를 눌러 켜고 끄기</small></h3>' + legend + chart +
-      '<h3>트래킹 <small>담은 뒤 변화와 새로 신고된 거래</small></h3><div class="tgrid">' + cards + '</div>';
+      '<h3>내 기준 · 트래킹 <small>관심 평형, 목표가, 우선순위, 태그, 메모는 자동 저장됩니다</small></h3><div class="tgrid">' + cards + '</div>';
+    panel.scrollTop = keep;
   }
 
-  // 분석기 이벤트(한 번만 등록)
+  // ───────── 접속 요약 배너 ─────────
+  function favSummary() {
+    var u = curUser(); if (!u) return null;
+    var s = { nw: 0, hi: 0, tg: 0 };
+    Object.keys(u.favs).forEach(function (k) {
+      var i = idxByKey[k]; if (i === undefined) return;
+      var f = u.favs[k], all = byC[i], seen = f.s || 0;
+      var news = all.filter(function (t) { return t.ymd > seen && (!f.pa || Math.abs(t.area - f.pa) <= 1); });
+      if (!news.length) return;
+      s.nw += news.length;
+      var hi = false, tg = false;
+      news.forEach(function (t) {
+        var prev = all.filter(function (p) { return p.ymd <= seen && Math.abs(p.area - t.area) <= 1; });
+        if (prev.length && t.price > Math.max.apply(null, prev.map(function (p) { return p.price; }))) hi = true;
+        if (f.tp && t.price <= f.tp) tg = true;
+      });
+      if (hi) s.hi++; if (tg) s.tg++;
+    });
+    return s;
+  }
+  var BNK = 'hf.bn.v1';
+  function bannerSig(s) { return s.nw + '|' + s.hi + '|' + s.tg; }
+  function dismissBanner() {
+    var s = favSummary(); if (!s) return;
+    try { var m = JSON.parse(localStorage.getItem(BNK) || '{}'); m[store.last] = bannerSig(s); localStorage.setItem(BNK, JSON.stringify(m)); } catch (e) { /* 무시 */ }
+    $('favBanner').hidden = true;
+  }
+  function updateBanner() {
+    var s = favSummary(), el = $('favBanner');
+    if (!s || !s.nw) { el.hidden = true; return; }
+    var seen = ''; try { seen = (JSON.parse(localStorage.getItem(BNK) || '{}'))[store.last] || ''; } catch (e) { /* 무시 */ }
+    if (seen === bannerSig(s)) { el.hidden = true; return; }
+    el.innerHTML = '<span>⭐ 즐겨찾기에 새 거래 <b>' + s.nw + '건</b>' + (s.hi ? ' · 최고가 갱신 <b>' + s.hi + '곳</b>' : '') + (s.tg ? ' · 🎯 목표가 이하 <b>' + s.tg + '곳</b>' : '') + '</span><button type="button" id="bnOpen">분석기에서 보기</button><button type="button" id="bnClose" aria-label="닫기">✕</button>';
+    el.hidden = false;
+  }
+
+  // ───────── 분석기 이벤트(한 번만 등록) ─────────
   $('favBtn').addEventListener('click', openAna);
   $('anaClose').addEventListener('click', closeAna);
   $('ana').addEventListener('click', function (e) { if (e.target.id === 'ana') closeAna(); });
   $('aBand').addEventListener('change', drawAna);
+  $('aSort').addEventListener('change', function () { anaSort = $('aSort').value; drawAna(); });
+  $('aTag').addEventListener('change', function () { anaTag = $('aTag').value; drawAna(); });
+  ['bOwn', 'bLoan'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var u = curUser(); if (!u) return;
+      u.bud = { own: toMan($('bOwn').value), loan: toMan($('bLoan').value) };
+      touchUser(); drawAna();
+    });
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.id === 'bnOpen') openAna();
+    if (e.target.id === 'bnClose') dismissBanner();
+  });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (!$('ana').hidden) closeAna(); else if (!$('profile').hidden) closeProfile(); } });
+
+  function editFav(k, fn) { var u = curUser(), f = u && u.favs[k]; if (f) { fn(f); touchUser(); } }
+  function cleanTag(s) { return String(s || '').replace(/[|,#<>]/g, '').trim().slice(0, 12); }
   $('anaBody').addEventListener('click', function (e) {
     var o = e.target.closest('[data-open]');
     if (o) { e.preventDefault(); closeAna(); $('fSearch').value = ''; showComplex(+o.dataset.open); return; }
@@ -1721,10 +1928,44 @@ table.at td.an a:hover{color:var(--accent);text-decoration:underline}
     if (st) { toggleFav(+st.dataset.f); return; }
     var lg = e.target.closest('[data-lg]');
     if (lg) { anaHidden[lg.dataset.lg] = !anaHidden[lg.dataset.lg]; drawAna(); return; }
+    var rt = e.target.closest('[data-rate]');
+    if (rt) { editFav(rt.dataset.rk, function (f) { var n = +rt.dataset.rate; f.r = f.r === n ? 0 : n; }); drawAna(); return; }
+    var tg = e.target.closest('[data-tagt]');
+    if (tg) { editFav(tg.dataset.rk, function (f) { f.g = f.g || []; var at = f.g.indexOf(tg.dataset.tagt); if (at >= 0) f.g.splice(at, 1); else if (f.g.length < 6) f.g.push(tg.dataset.tagt); }); drawAna(); return; }
     var sn = e.target.closest('[data-seen]'), u = curUser();
-    if (sn && u && u.favs[sn.dataset.seen]) { var i = idxByKey[sn.dataset.seen]; u.favs[sn.dataset.seen].s = i !== undefined && byC[i].length ? byC[i][0].ymd : u.favs[sn.dataset.seen].s; touchUser(); drawAna(); return; }
+    if (sn && u && u.favs[sn.dataset.seen]) { var i = idxByKey[sn.dataset.seen]; u.favs[sn.dataset.seen].s = i !== undefined && byC[i].length ? byC[i][0].ymd : u.favs[sn.dataset.seen].s; touchUser(); drawAna(); updateBanner(); return; }
     var rm = e.target.closest('[data-rm]');
     if (rm && u) { delete u.favs[rm.dataset.rm]; touchUser(); updateFavUi(); }
+  });
+  $('anaBody').addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.dataset.pref !== undefined) {   // 관심 평형
+      editFav(t.dataset.pref, function (f) {
+        var i = idxByKey[t.dataset.pref];
+        if (t.value) { f.pa = parseFloat(t.value); rebase(i, f, f.pa); }
+        else { delete f.pa; var rt = repTrade(i); if (rt) f.b = { y: rt.ymd, p: rt.price, a: rt.area }; }
+      });
+      drawAna(); updateBanner();
+    } else if (t.dataset.tp !== undefined) {   // 목표가(억)
+      editFav(t.dataset.tp, function (f) { var v = toMan(t.value); if (v) f.tp = v; else delete f.tp; });
+      drawAna(); updateBanner();
+    }
+  });
+  $('anaBody').addEventListener('input', function (e) {   // 메모는 입력 중에 다시 그리지 않고 잠깐 뒤 저장만 한다
+    var t = e.target;
+    if (t.dataset.memo !== undefined) {
+      clearTimeout(memoTimer);
+      memoTimer = setTimeout(function () { editFav(t.dataset.memo, function (f) { var v = t.value.slice(0, 300); if (v) f.m = v; else delete f.m; }); }, 700);
+    }
+  });
+  $('anaBody').addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (e.key === 'Enter' && t.dataset.tagin !== undefined) {
+      e.preventDefault();
+      var g = cleanTag(t.value); if (!g) return;
+      editFav(t.dataset.tagin, function (f) { f.g = f.g || []; if (f.g.indexOf(g) < 0 && f.g.length < 6) f.g.push(g); });
+      drawAna();
+    }
   });
   (function chartHover() {   // 추이 차트: 마우스(터치)를 올린 달의 값 표시
     var body = $('anaBody');
