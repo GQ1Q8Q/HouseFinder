@@ -1150,13 +1150,14 @@ body:not([data-r="home"]) #favBanner{display:none}
     return y * 10000 + m * 100 + g[2];
   }
   function supArea(c, a) {  // 공급면적(㎡): 실제 값이 있으면 그 값, 없으면 전용면적 ÷ 전용률로 추정
-    var real = c.sa && c.sa[Math.round(a)];
+    var real = c && c.sa && c.sa[Math.round(a)];
     return real ? real : a / SUP_RATIO;
   }
   // 평형대 필터: 공급 평수(소수점 버림, 화면 표기와 동일)가 lo 초과 ~ hi 이하이면 해당. 예) 20~30평 = 21~30평
   function inBand(c, a, band) { var p = Math.floor(supArea(c, a) / PY); return p > band[0] && p <= band[1]; }
   function pyeong(a) { return Math.floor(a / PY); }              // 평: 소수점 버림
-  function areaStr(a) { return a.toFixed(1) + '㎡ (' + pyeong(a) + '평)'; }  // ㎡: 소수점 1자리
+  function ppy(a, c) { return Math.floor(supArea(c, a) / PY); }                      // 전용면적(㎡) -> 공급 평수(소수점 버림). 사람들이 부르는 평형(전용 84㎡ = 34평)
+  function areaStr(a, c) { return ppy(a, c) + '평 (' + a.toFixed(1) + '㎡)'; }          // 예) 34평 (84.9㎡)
   function age(b) { return b ? (+D.generated.slice(0, 4) - b + 1) : null; }  // 준공 해를 1년차로 센다
   function avg(a) { return a.reduce(function (s, x) { return s + x; }, 0) / a.length; }
 
@@ -1286,7 +1287,7 @@ body:not([data-r="home"]) #favBanner{display:none}
     var html = rows.slice(0, shown).map(function (r) {
       return '<div class="row item' + (r.i === selected ? ' on' : '') + '" data-i="' + r.i + '"><div class="c-n"><div class="nm">' + starHtml(r.i, 'star') + esc(r.c.n) + '</div><div class="m">' + esc(r.c.d) + (r.c.b ? ' · ' + r.c.b + '년 (' + age(r.c.b) + '년차)' : '') + '</div></div>' +
         '<div class="c-c">' + r.ts.length + '건</div><div class="c-a">' + won(r.avgPrice) + '</div><div class="c-pp">' + won(r.pp) + '</div>' +
-        '<div class="c-l"><div>' + won(r.last.price) + '</div><div class="m">' + ymdStr(r.last.ymd) + ' · ' + areaStr(r.last.area) + ' · ' + r.last.floor + '층</div></div></div>';
+        '<div class="c-l"><div>' + won(r.last.price) + '</div><div class="m">' + ymdStr(r.last.ymd) + ' · ' + areaStr(r.last.area, r.c) + ' · ' + r.last.floor + '층</div></div></div>';
     }).join('');
     if (shown < rows.length) html += '<button id="more" class="more">더 보기 (' + (rows.length - shown).toLocaleString() + '개 남음)</button>';
     return html;
@@ -1390,10 +1391,10 @@ body:not([data-r="home"]) #favBanner{display:none}
     chips.push(by ? chip(by + '년(' + age(by) + '년차)', '', ud ? '사용승인일 ' + ud.slice(0, 4) + '.' + ud.slice(4, 6) + '.' + ud.slice(6, 8) : '준공연도 (사용승인일 정보 없음)') : chip('준공 -', 'mute'));
     chips.push(c.h ? chip('총 ' + c.h.toLocaleString() + '세대') : chip('세대수 -', 'mute'));
     chips.push(c.pk ? chip('주차 ' + (c.h ? (c.pk / c.h).toFixed(1) + '대' : c.pk.toLocaleString() + '대'), '', '총 ' + c.pk.toLocaleString() + '대' + (c.h ? ' · 세대당 ' + (c.pk / c.h).toFixed(2) + '대' : '')) : chip('주차 -', 'mute'));
-    chips.push(chip('전용 ' + pyeong(repArea) + '평 / 공급 ' + pyeong(supOf(rep)) + '평', 'accent',
+    chips.push(chip(ppy(repArea, c) + '평', 'accent',
       '대표 평형: 전용 ' + repArea.toFixed(1) + '㎡ / 공급 ' + (c.sa && c.sa[rep] ? '' : '≈') + supOf(rep).toFixed(1) + '㎡' + (c.sa && c.sa[rep] ? '' : ' (전용률 ' + SUP_RATIO * 100 + '% 가정 추정)') + ' · 누르면 이 평형의 거래 이력만 봅니다', ' data-k="' + rep + '"'));
     if (types.length > 1) {
-      chips.push(chip('외 ' + (types.length - 1) + '개 평형', 'mute', types.map(function (k) { return '전용 ' + areaStr(groups[k][0].area) + ' / 공급 ≈' + supOf(k).toFixed(1) + '㎡'; }).join('\n') + '\n(누르면 평형별 표로 이동)', ' data-go="1"'));
+      chips.push(chip('외 ' + (types.length - 1) + '개 평형', 'mute', types.map(function (k) { return areaStr(groups[k][0].area, c) + ' · 공급≈' + supOf(k).toFixed(1) + '㎡'; }).join('\n') + '\n(누르면 평형별 표로 이동)', ' data-go="1"'));
     }
 
     // ② 평형별 매매·전세 (같은 평형끼리 비교, 합계는 전세 건수로 가중)
@@ -1405,7 +1406,7 @@ body:not([data-r="home"]) #favBanner{display:none}
       var sp = avg(groups[k].map(function (t) { return t.price; })), n = groups[k].length;
       var jp = rg[k] ? avg(rg[k]) : null;
       if (jp !== null) { wS += sp * rg[k].length; wJ += jp * rg[k].length; wN += rg[k].length; }
-      return '<tr class="pick' + (selTypeKey === k ? ' on' : '') + '" data-k="' + k + '" title="누르면 아래 거래 이력이 이 평형만 보입니다"><td>' + (selTypeKey === k ? '✓ ' : '') + areaStr(groups[k][0].area) + '</td><td>' + n + '</td><td>' + won(sp) + '</td>' +
+      return '<tr class="pick' + (selTypeKey === k ? ' on' : '') + '" data-k="' + k + '" title="누르면 아래 거래 이력이 이 평형만 보입니다"><td>' + (selTypeKey === k ? '✓ ' : '') + areaStr(groups[k][0].area, c) + '</td><td>' + n + '</td><td>' + won(sp) + '</td>' +
         (hasRents ? '<td>' + (jp !== null ? won(jp) + ' <small>(' + rg[k].length + ')</small>' : '<span class="na">-</span>') + '</td><td>' + (jp !== null ? '<b>' + (jp / sp * 100).toFixed(1) + '%</b>' : '<span class="na">-</span>') + '</td>' : '') + '</tr>';
     });
     var ratio = wN ? wJ / wS * 100 : null;
@@ -1413,7 +1414,7 @@ body:not([data-r="home"]) #favBanner{display:none}
     // ③ KPI 4열: 최근 실거래가 · 3개월 평균 · 전세가율 · 평당가
     var last = r.ts[0];
     var kpis = '<div class="kgrid">' +
-      kpi('최근 실거래가', won(last.price), last.floor + '층 · ' + pyeong(last.area) + '평', ymdStr(last.ymd) + ' 계약 · 전용 ' + last.area.toFixed(1) + '㎡') +
+      kpi('최근 실거래가', won(last.price), last.floor + '층 · ' + ppy(last.area, c) + '평', ymdStr(last.ymd) + ' 계약 · 전용 ' + last.area.toFixed(1) + '㎡') +
       kpi('최근 3개월 평균', t3.length ? won(avg(t3.map(function (t) { return t.price; }))) : '-', t3.length + '건 거래') +
       kpi('전세가율', ratio !== null ? ratio.toFixed(1) + '%' : '-', ratio !== null ? '매매 ' + wonS(wS / wN) + ' / 전세 ' + wonS(wJ / wN) : (hasRents ? '전세 거래 없음' : '전월세 미연동'), '같은 평형끼리 비교, 전세 거래 건수로 가중평균') +
       kpi('평당가', won(r.pp), '기간 평균') + '</div>';
@@ -1443,11 +1444,11 @@ body:not([data-r="home"]) #favBanner{display:none}
     all.forEach(function (t) { var k = kf(t.area); var g = ga[k] = ga[k] || { max: 0, n: 0, done: false }; g.n++; if (t.price > g.max) g.max = t.price; });
     var histSrc = selTypeKey === null ? allA : allA.filter(function (t) { return kf(t.area) === selTypeKey; });
     var tbar = '<div class="tbar"><button type="button" class="tb' + (selTypeKey === null ? ' on' : '') + '" data-k="">전체</button>' +
-      typesAll.map(function (k) { return '<button type="button" class="tb' + (selTypeKey === k ? ' on' : '') + '" data-k="' + k + '" title="전용 ' + areaOf[k].toFixed(1) + '㎡">' + pyeong(areaOf[k]) + '평</button>'; }).join('') + '</div>';
+      typesAll.map(function (k) { return '<button type="button" class="tb' + (selTypeKey === k ? ' on' : '') + '" data-k="' + k + '" title="전용 ' + areaOf[k].toFixed(1) + '㎡">' + ppy(areaOf[k], c) + '평</button>'; }).join('') + '</div>';
     var hist = histSrc.slice(0, 200).map(function (t) {
       var g = ga[kf(t.area)], hi = g.n >= 2 && t.price === g.max && !g.done;
       if (hi) g.done = true;
-      return '<tr><td>' + ymdStr(t.ymd) + '</td><td>' + areaStr(t.area) + '</td><td>' + t.floor + '</td><td class="pr">' + (hi ? '<span class="hi" title="같은 평형의 24개월 내 최고가">신고가</span>' : '') + won(t.price) + '</td></tr>';
+      return '<tr><td>' + ymdStr(t.ymd) + '</td><td>' + areaStr(t.area, c) + '</td><td>' + t.floor + '</td><td class="pr">' + (hi ? '<span class="hi" title="같은 평형의 24개월 내 최고가">신고가</span>' : '') + won(t.price) + '</td></tr>';
     }).join('');
 
     var d = $('detail'), fresh = d.hidden, keepTop = d.scrollTop;
@@ -1456,9 +1457,9 @@ body:not([data-r="home"]) #favBanner{display:none}
       '<div class="chips">' + chips.join('') + '</div>' + kpis +
       '<h3>월별 평당가 추이 <small>최근 12개월</small></h3>' + chart +
       '<h3 id="typesH">평형별 <small>' + (hasRents ? '매매 · 전세' : '매매') + ' (현재 필터 기간) · 행을 누르면 아래 거래 이력이 그 평형만 보입니다</small></h3>' +
-      '<table class="t" id="typesTbl"><thead><tr><th>전용</th><th>건수</th><th>평균 매매</th>' + (hasRents ? '<th>평균 전세</th><th>전세가율</th>' : '') + '</tr></thead><tbody>' + trows.join('') + '</tbody></table>' +
-      '<h3>거래 이력 <small>' + (selTypeKey === null ? allA.length + '건' : pyeong(areaOf[selTypeKey]) + '평형 ' + histSrc.length + '건 (전체 ' + allA.length + '건)') + (histSrc.length > 200 ? ' 중 최근 200건' : '') + '</small></h3>' + tbar +
-      '<div class="hist"><table class="t z"><thead><tr><th>계약일</th><th>전용</th><th>층</th><th>금액</th></tr></thead><tbody>' + hist + '</tbody></table></div>';
+      '<table class="t" id="typesTbl"><thead><tr><th>평형</th><th>건수</th><th>평균 매매</th>' + (hasRents ? '<th>평균 전세</th><th>전세가율</th>' : '') + '</tr></thead><tbody>' + trows.join('') + '</tbody></table>' +
+      '<h3>거래 이력 <small>' + (selTypeKey === null ? allA.length + '건' : ppy(areaOf[selTypeKey], c) + '평형 ' + histSrc.length + '건 (전체 ' + allA.length + '건)') + (histSrc.length > 200 ? ' 중 최근 200건' : '') + '</small></h3>' + tbar +
+      '<div class="hist"><table class="t z"><thead><tr><th>계약일</th><th>평형</th><th>층</th><th>금액</th></tr></thead><tbody>' + hist + '</tbody></table></div>';
 
     // 차트 툴팁
     var ch = d.querySelector('.chart'), te = ch.querySelector('.ctip');
@@ -1907,10 +1908,10 @@ body:not([data-r="home"]) #favBanner{display:none}
     // ① 비교 표
     var trs = live.map(function (x) {
       var c = D.complexes[x.i], l = x.last, f = x.f;
-      var meta = esc(regById[c.r].name + ' ' + c.d) + (c.b ? ' · ' + c.b + '년(' + age(c.b) + '년차)' : '') + (c.h ? ' · ' + c.h.toLocaleString() + '세대' : '') + (f.pa ? ' · <b>관심 ' + pyeong(f.pa) + '평</b>' : '');
+      var meta = esc(regById[c.r].name + ' ' + c.d) + (c.b ? ' · ' + c.b + '년(' + age(c.b) + '년차)' : '') + (c.h ? ' · ' + c.h.toLocaleString() + '세대' : '') + (f.pa ? ' · <b>관심 ' + ppy(f.pa, c) + '평</b>' : '');
       return '<tr><td class="an"><i class="dot" style="background:' + x.color + '"></i><a href="#" data-open="' + x.i + '">' + esc(c.n) + '</a>' + ratingHtml(x.k, f.r || 0) +
         '<small>' + meta + '</small>' + ((f.g && f.g.length) ? '<div class="tgs">' + f.g.map(function (g) { return '<span class="tg">' + esc(g) + '</span>'; }).join('') + '</div>' : '') + (f.m ? '<small class="memo">“' + esc(f.m.length > 40 ? f.m.slice(0, 40) + '…' : f.m) + '”</small>' : '') + '</td>' +
-        '<td>' + (l ? '<b>' + won(l.price) + '</b><small>' + ymdStr(l.ymd) + ' · ' + pyeong(l.area) + '평 · ' + l.floor + '층</small>' : '<span class="na">-</span>') + '</td>' +
+        '<td>' + (l ? '<b>' + won(l.price) + '</b><small>' + ymdStr(l.ymd) + ' · ' + ppy(l.area, c) + '평 · ' + l.floor + '층</small>' : '<span class="na">-</span>') + '</td>' +
         '<td>' + (x.avg3 !== null ? '<b>' + won(x.avg3) + '</b><small>' + x.n3 + '건</small>' : '<span class="na">-</span>') + '</td>' +
         '<td>' + (x.pp !== null ? '<b>' + won(x.pp) + '</b><small>' + x.n12 + '건/12개월</small>' : '<span class="na">-</span>') + '</td>' +
         '<td>' + posHtml(x) + '</td>' +
@@ -1957,18 +1958,18 @@ body:not([data-r="home"]) #favBanner{display:none}
       all.forEach(function (t) { var k = kf(t.area); if (!tmap[k]) tmap[k] = { a: t.area, n: 0 }; tmap[k].n++; });
       var opts = '<option value="">자동 (가장 많이 거래된 평형)</option>' + Object.keys(tmap).map(Number).sort(function (a, b) { return a - b; }).map(function (k) {
         var o = tmap[k], sel = f.pa && Math.abs(o.a - f.pa) <= 1;
-        return '<option value="' + o.a.toFixed(2) + '"' + (sel ? ' selected' : '') + '>' + pyeong(o.a) + '평 (전용 ' + o.a.toFixed(1) + '㎡) · ' + o.n + '건</option>';
+        return '<option value="' + o.a.toFixed(2) + '"' + (sel ? ' selected' : '') + '>' + ppy(o.a, c) + '평 (전용 ' + o.a.toFixed(1) + '㎡) · ' + o.n + '건</option>';
       }).join('');
       var tags = (f.g || []).map(function (g) { return '<span class="tg on">' + esc(g) + '<button type="button" data-tagt="' + esc(g) + '" data-rk="' + esc(x.k) + '" title="태그 삭제">×</button></span>'; }).join('');
       var presets = PRESET_TAGS.filter(function (g) { return (f.g || []).indexOf(g) < 0; }).map(function (g) { return '<button type="button" class="tg add" data-tagt="' + esc(g) + '" data-rk="' + esc(x.k) + '">+ ' + esc(g) + '</button>'; }).join('');
       return '<div class="tcard"><div class="tch"><i class="dot" style="background:' + x.color + '"></i><b>' + esc(c.n) + '</b>' + starHtml(x.i, 'star') + '</div>' +
-        '<div class="tcm">담은 날 ' + esc(f.t) + (x.base ? ' · 기준 ' + pyeong(x.base.a) + '평 ' + won(x.base.p) + ' (' + ymdStr(x.base.y) + ')' : '') + '</div>' +
+        '<div class="tcm">담은 날 ' + esc(f.t) + (x.base ? ' · 기준 ' + ppy(x.base.a, c) + '평 ' + won(x.base.p) + ' (' + ymdStr(x.base.y) + ')' : '') + '</div>' +
         '<div class="tcm">담은 후 ' + chgHtml(x) + '</div>' +
         '<div class="trow"><label>관심 평형<select data-pref="' + esc(x.k) + '">' + opts + '</select></label></div>' +
         '<div class="trow"><label>목표가 <input type="number" step="0.1" min="0" inputmode="decimal" data-tp="' + esc(x.k) + '" value="' + (f.tp ? eok(f.tp) : '') + '" placeholder="없음"> 억</label><span class="rl">우선순위 ' + ratingHtml(x.k, f.r || 0) + '</span></div>' +
         '<div class="trow tagrow">' + tags + presets + '<input type="text" maxlength="12" data-tagin="' + esc(x.k) + '" placeholder="+ 직접 입력"></div>' +
         '<textarea data-memo="' + esc(x.k) + '" maxlength="300" rows="2" placeholder="메모 (예: 학군 좋음, 주차 불편, 임장 때 확인할 것)">' + esc(f.m || '') + '</textarea>' +
-        (x.news.length ? '<div class="tnew"><b>새 거래 ' + x.news.length + '건</b> <small>마지막 확인 ' + (f.s ? ymdStr(f.s) : '-') + ' 이후</small><ul>' + news.map(function (t) { return '<li>' + ymdStr(t.ymd) + ' · ' + pyeong(t.area) + '평 · ' + t.floor + '층 · <b>' + won(t.price) + '</b></li>'; }).join('') + (x.news.length > 5 ? '<li class="na">외 ' + (x.news.length - 5) + '건</li>' : '') + '</ul><button type="button" class="tb" data-seen="' + esc(x.k) + '">확인했어요</button></div>' : '<div class="tcm na">마지막 확인 이후 새 거래가 없습니다.</div>') + '</div>';
+        (x.news.length ? '<div class="tnew"><b>새 거래 ' + x.news.length + '건</b> <small>마지막 확인 ' + (f.s ? ymdStr(f.s) : '-') + ' 이후</small><ul>' + news.map(function (t) { return '<li>' + ymdStr(t.ymd) + ' · ' + ppy(t.area, c) + '평 · ' + t.floor + '층 · <b>' + won(t.price) + '</b></li>'; }).join('') + (x.news.length > 5 ? '<li class="na">외 ' + (x.news.length - 5) + '건</li>' : '') + '</ul><button type="button" class="tb" data-seen="' + esc(x.k) + '">확인했어요</button></div>' : '<div class="tcm na">마지막 확인 이후 새 거래가 없습니다.</div>') + '</div>';
     }).join('') + gone.map(function (x) { return '<div class="tcard"><div class="tch"><b>' + esc(x.k.split('|')[3] || x.k) + '</b></div><div class="tcm na">현재 데이터에서 찾을 수 없는 단지입니다.</div><button type="button" class="tb" data-rm="' + esc(x.k) + '">목록에서 삭제</button></div>'; }).join('');
 
     var bandName = (band[1] >= 999 && band[0] === 0) ? '모든 평형' : $('aBand').options[$('aBand').selectedIndex].text;
@@ -2210,7 +2211,7 @@ body:not([data-r="home"]) #favBanner{display:none}
     var up = r.gain !== null && r.gain > 0, dn = r.gain !== null && r.gain < 0, cls = up ? 'up' : dn ? 'down' : '';
     var sign = up ? '+' : dn ? '−' : '';
     var posTxt = r.pos ? '구 상위 <b>' + r.pos.top + '%</b>' + (r.posD ? ' · 동 상위 <b>' + r.posD.top + '%</b>' : '') + ' <small>(같은 평형대 평당가 기준)</small>' : '<span class="na">-</span>';
-    return '<div class="hcard"><div class="hh"><div><b class="hn">' + esc(nm) + '</b><div class="addr">' + esc(regById[r.c.r].name + ' ' + r.c.d + ' · ' + pyeong(h.a) + '평 (전용 ' + h.a.toFixed(1) + '㎡)' + (r.c.b ? ' · ' + r.c.b + '년(' + age(r.c.b) + '년차)' : '')) + '</div></div>' +
+    return '<div class="hcard"><div class="hh"><div><b class="hn">' + esc(nm) + '</b><div class="addr">' + esc(regById[r.c.r].name + ' ' + r.c.d + ' · ' + ppy(h.a, r.c) + '평 (전용 ' + h.a.toFixed(1) + '㎡)' + (r.c.b ? ' · ' + r.c.b + '년(' + age(r.c.b) + '년차)' : '')) + '</div></div>' +
       '<div class="hact"><button type="button" class="tb" data-hedit="' + esc(h.id) + '">수정</button><button type="button" class="tb" data-hdel="' + esc(h.id) + '">삭제</button></div></div>' +
       '<div class="kgrid hk">' +
       kpi('추정 시세', r.est !== null ? won(r.est) : '-', r.basis) +
@@ -2255,14 +2256,14 @@ body:not([data-r="home"]) #favBanner{display:none}
     }).filter(Boolean).sort(function (a, b) { return a.need - b.need; });
     var trs = rows.map(function (r) {
       var ok = r.room >= 0;
-      return '<tr><td class="an"><a href="#" data-open="' + r.x.i + '">' + esc(r.c.n) + '</a><small>' + esc(regById[r.c.r].name + ' ' + r.c.d) + ' · 전용 ' + pyeong(r.t.area) + '평 / 공급≈' + pyeong(supArea(r.c, r.t.area)) + '평 (내 집 전용 ' + pyeong(cur.h.a) + '평 → ' + pyeong(r.t.area) + '평)</small></td>' +
+      return '<tr><td class="an"><a href="#" data-open="' + r.x.i + '">' + esc(r.c.n) + '</a><small>' + esc(regById[r.c.r].name + ' ' + r.c.d) + ' · ' + ppy(r.t.area, r.c) + '평 (내 집 ' + ppy(cur.h.a, cur.c) + '평 → ' + ppy(r.t.area, r.c) + '평)</small></td>' +
         '<td><b>' + won(r.t.price) + '</b><small>' + ymdStr(r.t.ymd) + ' · ' + r.t.floor + '층</small></td>' +
         '<td>' + (r.diff >= 0 ? '+' : '−') + won(Math.abs(r.diff)) + '<small>내 집 시세 대비</small></td>' +
         '<td><b>' + (r.need > 0 ? won(r.need) : '남는 돈 ' + won(-r.need)) + '</b><small>' + (r.need > 0 ? '추가로 필요' : '매도 대금으로 충분') + '</small></td>' +
         '<td>' + (extra > 0 || r.need > 0 ? (ok ? '<span class="ok">여유 ' + won(r.room) + '</span>' : '<span class="over">' + won(-r.room) + ' 부족</span>') : '<span class="na">예산 미입력</span>') + '</td></tr>';
     }).join('');
     return head +
-      '<div class="swctl"><label>팔 집 <select id="swHome">' + sellable.map(function (r) { return '<option value="' + esc(r.h.id) + '"' + (r.h.id === cur.h.id ? ' selected' : '') + '>' + esc(r.h.nk || r.c.n) + ' · ' + pyeong(r.h.a) + '평</option>'; }).join('') + '</select></label>' +
+      '<div class="swctl"><label>팔 집 <select id="swHome">' + sellable.map(function (r) { return '<option value="' + esc(r.h.id) + '"' + (r.h.id === cur.h.id ? ' selected' : '') + '>' + esc(r.h.nk || r.c.n) + ' · ' + ppy(r.h.a, r.c) + '평</option>'; }).join('') + '</select></label>' +
       '<label>후보 평형대 <select id="swBand">' + [['0-999', '평형 전체'], ['0-20', '20평 이하'], ['20-30', '20~30평'], ['30-40', '30~40평'], ['40-50', '40~50평'], ['50-999', '50평 초과']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === swBand ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
       '<label>거래 비용 <input id="swCost" type="number" step="0.1" min="0" inputmode="decimal" value="' + eok(cost) + '" placeholder="0"> 억</label>' +
       '<span class="hint">중개 수수료, 세금 등 직접 입력 (규정이 자주 바뀌어 자동 계산하지 않습니다)</span></div>' +
@@ -2283,7 +2284,7 @@ body:not([data-r="home"]) #favBanner{display:none}
     $('hRes').innerHTML = '';
     var ty = hTypes(i), pick = ty[0];
     if (selArea) pick = ty.filter(function (t) { return Math.abs(t.a - selArea) <= 1; })[0] || pick;
-    $('hType').innerHTML = ty.map(function (t) { return '<option value="' + t.a.toFixed(2) + '"' + (t === pick ? ' selected' : '') + '>' + pyeong(t.a) + '평 (전용 ' + t.a.toFixed(1) + '㎡) · ' + t.n + '건</option>'; }).join('');
+    $('hType').innerHTML = ty.map(function (t) { return '<option value="' + t.a.toFixed(2) + '"' + (t === pick ? ' selected' : '') + '>' + ppy(t.a, D.complexes[hSelI]) + '평 (전용 ' + t.a.toFixed(1) + '㎡) · ' + t.n + '건</option>'; }).join('');
   }
   function openHForm(h) {
     hEditId = h ? h.id : null; hSelI = null;
