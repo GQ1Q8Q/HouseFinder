@@ -670,6 +670,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 @media (prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1a1f28;--text:#e6e9ef;--muted:#9aa4b5;--line:#2a313d;--accent:#6ea0ff;--hover:#222b3d;--card2:#212733;--chip:#242b38;--accentbg:#1e2a44;--accentline:#2f4a7a;--zebra:#1f2530}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
+@supports (height:100dvh){html,body{height:100dvh}}
 body{display:flex;flex-direction:column;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,"Segoe UI","Malgun Gothic",sans-serif}
 header{display:flex;align-items:baseline;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--card)}
 header h1{font-size:18px;margin:0}
@@ -704,11 +705,35 @@ main.dopen{grid-template-columns:repeat(3,minmax(0,1fr))}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}
 @container (max-width:620px){.c-c,.c-l{display:none}.row{grid-template-columns:minmax(0,2.4fr) minmax(0,1.2fr) minmax(0,1.2fr)}}
 @media (max-width:1100px){main.dopen{grid-template-columns:repeat(2,minmax(0,1fr))}main.dopen #listPane{display:none}#detail{border-left:0}}
+#mbar{display:none}
 @media (max-width:760px){
   main,main.dopen{display:flex;flex-direction:column}
-  #map{order:-1;flex:none;width:auto;height:30vh;border-left:0;border-bottom:1px solid var(--line)}
+  #map{order:-1;flex:none;width:auto;height:26dvh;min-height:150px;border-left:0;border-bottom:1px solid var(--line)}
   .row{grid-template-columns:minmax(0,1.8fr) minmax(0,1fr) minmax(0,1fr);gap:6px}
   .c-c,.c-l{display:none}
+  /* 한 줄 헤더 */
+  header{padding:5px 12px;gap:8px;align-items:center}
+  header h1{font-size:16px}
+  #asof,#mockBadge{display:none}
+  .userbtn{padding:2px 10px;font-size:12px}
+  .userbtn .cnt{display:none}
+  /* 접기 막대 */
+  #mbar{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--card);border-bottom:1px solid var(--line)}
+  #mbar button{display:flex;align-items:center;gap:6px;font:inherit;font-size:12.5px;color:var(--text);background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:3px 10px;cursor:pointer;min-width:0}
+  #tgFilter{flex:1 1 auto}
+  #fsum{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);text-align:left}
+  #mbar .lbl{font-weight:600;flex:none}
+  #mbar .car{flex:none;color:var(--muted);transition:transform .15s}
+  #mbar button.open .car{transform:rotate(180deg)}
+  #asofM{flex:none;font-size:11px;color:var(--muted)}
+  /* 접힘 상태 */
+  body.m-nofilters .filters{display:none}
+  body.m-nomap #map{display:none}
+  .filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px 12px}
+  .filters select,.filters input{width:100%;padding:5px 7px}
+  .filters #fSearch{grid-column:1/-1;flex:none;order:-1}   /* 검색창을 맨 위로, 나머지는 2열씩 */
+  .sum{padding:7px 12px 4px}
+  .row{padding:0 12px}
 }
 
 #loading{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;background:var(--bg);color:var(--muted);font-size:15px;text-align:center;padding:24px}
@@ -805,6 +830,11 @@ tr.pick.on td{background:var(--accentbg);font-weight:600}
   <span id="mockBadge" hidden>샘플 데이터</span>
   <button id="userBtn" class="userbtn" type="button">👤 내 관심지역 설정</button>
 </header>
+<div id="mbar">
+  <button id="tgFilter" type="button" aria-expanded="false"><span class="lbl">필터</span><span id="fsum"></span><span class="car">▾</span></button>
+  <button id="tgMap" type="button" aria-expanded="true"><span class="lbl">지도</span><span class="car">▾</span></button>
+  <span id="asofM"></span>
+</div>
 <section class="filters">
   <select id="fSido" aria-label="시·도"></select>
   <select id="fRegion" aria-label="시·군·구"></select>
@@ -946,7 +976,7 @@ tr.pick.on td{background:var(--accentbg);font-weight:600}
   legend.onAdd = function () { this._d = L.DomUtil.create('div', 'legend'); return this._d; };
   legend.addTo(map);
 
-  var rows = [], markers = {}, selected = null;
+  var rows = [], markers = {}, selected = null, lastPts = [];
   var selTypeKey = null, selTypeFor = null;  // 상세 패널에서 고른 평형(없으면 전체)
   var sortKey = 'a', sortDir = -1;  // 기본: 평균가 높은 순
   var SORTS = { n: function (r) { return r.c.n; }, c: function (r) { return r.ts.length; }, a: function (r) { return r.avgPrice; }, pp: function (r) { return r.pp; }, l: function (r) { return r.last.ymd; } };
@@ -1008,6 +1038,7 @@ tr.pick.on td{background:var(--accentbg);font-weight:600}
     var br = [1, 2, 3, 4].map(function (k) { return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(k * sorted.length / 5))] : 0; });
     layer.clearLayers(); markers = {};
     var pts = [];
+    lastPts = pts;
     rows.forEach(function (r) {
       if (!r.c.p) return;
       var m = L.circleMarker(r.c.p, { renderer: canvasR, radius: 7, color: '#fff', weight: 1.2, fillColor: COLORS[bucketOf(r.pp, br)], fillOpacity: 0.9 });
@@ -1034,6 +1065,7 @@ tr.pick.on td{background:var(--accentbg);font-weight:600}
     }).join('<br>');
 
     $('list').innerHTML = listHtml();
+    updateFsum();
     if (selected !== null) {
       if (rows.some(function (r) { return r.i === selected; })) select(selected, false); else closeDetail();
     }
@@ -1259,7 +1291,7 @@ tr.pick.on td{background:var(--accentbg);font-weight:600}
 
   function setUserBtn() {
     var u = curUser();
-    $('userBtn').textContent = u ? '👤 ' + store.last + (u.regions.length ? ' · 관심 ' + favList().length + '곳' : '') : '👤 내 관심지역 설정';
+    $('userBtn').innerHTML = u ? '👤 ' + esc(store.last) + (u.regions.length ? '<span class="cnt"> · 관심 ' + favList().length + '곳</span>' : '') : '👤 <span class="cnt">내 관심지역 </span>설정';
   }
 
   var pEditRegs = [];
@@ -1340,6 +1372,39 @@ tr.pick.on td{background:var(--accentbg);font-weight:600}
     delete store.users[n]; if (store.last === n) store.last = Object.keys(store.users)[0] || '';
     saveStore(); pEditRegs = curUser() ? curUser().regions.slice() : []; drawProfile(); applyProfile();
   });
+
+  // ───────── 모바일: 필터·지도 접기 (선택은 이 기기에 기억) ─────────
+  var UIK = 'hf.ui.v1', ui = { filters: false, map: true };
+  try { var us = JSON.parse(localStorage.getItem(UIK) || 'null'); if (us) ui = { filters: !!us.filters, map: us.map !== false }; } catch (e) { /* 무시 */ }
+  function optText(id) { var o = $(id).options[$(id).selectedIndex]; return o ? o.text : ''; }
+  function updateFsum() {
+    var parts = [];
+    var reg = $('fRegion').value ? optText('fRegion') : ($('fSido').value ? $('fSido').value + ' 전체' : '전체 지역');
+    parts.push(reg.replace('★ ', '★'));
+    if ($('fDong').value) parts.push($('fDong').value);
+    if ($('fSearch').value.trim()) parts.push('“' + $('fSearch').value.trim() + '”');
+    if ($('fArea').value !== '0-999') parts.push(optText('fArea'));
+    parts.push(optText('fPeriod').replace('최근 ', ''));
+    $('fsum').textContent = parts.join(' · ');
+  }
+  function applyUi() {
+    document.body.classList.toggle('m-nofilters', !ui.filters);
+    document.body.classList.toggle('m-nomap', !ui.map);
+    $('tgFilter').setAttribute('aria-expanded', ui.filters); $('tgMap').setAttribute('aria-expanded', ui.map);
+    $('tgFilter').classList.toggle('open', ui.filters); $('tgMap').classList.toggle('open', ui.map);
+  }
+  function saveUi() { try { localStorage.setItem(UIK, JSON.stringify(ui)); } catch (e) { /* 무시 */ } }
+  $('tgFilter').addEventListener('click', function () { ui.filters = !ui.filters; saveUi(); applyUi(); });
+  $('tgMap').addEventListener('click', function () {
+    ui.map = !ui.map; saveUi(); applyUi();
+    if (ui.map) setTimeout(function () {   // 다시 펼치면 지도 크기를 다시 계산하고 보던 곳으로 맞춘다
+      map.invalidateSize();
+      if (selected !== null && markers[selected]) map.setView(markers[selected].getLatLng(), Math.max(map.getZoom(), 15));
+      else if (lastPts.length) map.fitBounds(lastPts, { padding: [30, 30], maxZoom: 15 });
+    }, 60);
+  });
+  $('asofM').textContent = '기준 ' + D.generated.slice(2).replace(/-/g, '.');
+  applyUi();
 
   fillRegions();
   if (favList().length) $('fRegion').value = '__fav';   // 처음 접속 시 기본 필터 = 내 관심지역
